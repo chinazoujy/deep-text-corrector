@@ -45,8 +45,8 @@ tf.app.flags.DEFINE_boolean("decode", False, "Whether we should decode data "
                                              "train a model and save it at "
                                              "output_path/model.")
 tf.app.flags.DEFINE_integer("num_steps", 3000, "Number of steps to train.")
-tf.app.flags.DEFINE_boolean("decode_sentence", False, 
-			    "Whether we should decode sentences of the user.")
+tf.app.flags.DEFINE_boolean("decode_sentence", False,
+                            "Whether we should decode sentences of the user.")
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -130,9 +130,9 @@ def create_model(session, forward_only, model_path, config=TestConfig()):
         config=config)
     ckpt = tf.train.get_checkpoint_state(model_path)
     if ckpt:
-    	ckpt_file = ckpt.model_checkpoint_path.split("/")[-1]
-   	ckpt_path = os.path.join(model_path, ckpt_file)
-	print("Reading model parameters from %s" % ckpt_path)
+        ckpt_file = ckpt.model_checkpoint_path.split("/")[-1]
+        ckpt_path = os.path.join(model_path, ckpt_file)
+        print("Reading model parameters from %s" % ckpt_path)
         model.saver.restore(session, ckpt_path)
     else:
         print("Created model with fresh parameters.")
@@ -187,8 +187,7 @@ def train(data_reader, train_path, test_path, model_path):
                 train_data, bucket_id)
             _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
                                          target_weights, bucket_id, False)
-            step_time += (time.time() - start_time) / config \
-                .steps_per_checkpoint
+            step_time += (time.time() - start_time) / config.steps_per_checkpoint
             loss += step_loss / config.steps_per_checkpoint
             current_step += 1
 
@@ -241,7 +240,8 @@ def get_corrective_tokens(data_reader, train_path):
     return corrective_tokens
 
 
-def decode(sess, model, data_reader, data_to_decode, corrective_tokens=set(),
+def decode(sess, model, data_reader, data_to_decode,
+           corrective_tokens=None,
            verbose=True):
     """
 
@@ -258,9 +258,12 @@ def decode(sess, model, data_reader, data_to_decode, corrective_tokens=set(),
 
     corrective_tokens_mask = np.zeros(model.target_vocab_size)
     corrective_tokens_mask[EOS_ID] = 1.0
+
+    if corrective_tokens is None:
+        corrective_tokens = set()
     for tokens in corrective_tokens:
-	for token in tokens:
-		corrective_tokens_mask[data_reader.convert_token_to_id(token)] = 1.0
+        for token in tokens:
+            corrective_tokens_mask[data_reader.convert_token_to_id(token)] = 1.0
 
     for tokens in data_to_decode:
         token_ids = [data_reader.convert_token_to_id(token) for token in tokens]
@@ -406,7 +409,7 @@ def evaluate_accuracy(sess, model, data_reader, corrective_tokens, test_path,
 def copy_train_data():
     train_data_dir = os.path.join(FLAGS.output_path, 'data')
     if not os.path.exists(train_data_dir):
-	os.makedirs(train_data_dir)
+        os.makedirs(train_data_dir)
     shutil.copy(FLAGS.train_path, os.path.join(train_data_dir, 'movie_dialog_train.txt'))
 
 
@@ -424,9 +427,9 @@ def main(_):
                          "DefaultMovieDialogConfig")
     # Set the model path.
     if not FLAGS.decode and not FLAGS.decode_sentence:
-    	model_path = os.path.join(FLAGS.output_path, "model") 
+        model_path = os.path.join(FLAGS.output_path, "model")
     else:
-	model_path = os.path.join(FLAGS.input_path, "model")
+        model_path = os.path.join(FLAGS.input_path, "model")
     if not os.path.exists(model_path):
         os.makedirs(model_path)
     # Set the max_steps.
@@ -439,17 +442,17 @@ def main(_):
     else:
         raise ValueError("data_reader_type argument %s not recognized; must be "
                          "one of: MovieDialogReader, PTBDataReader" % FLAGS.data_reader_type)
-    
+
     if FLAGS.decode_sentence:
         # Correct user's sentences.
-	with tf.Session() as session:
+        with tf.Session() as session:
             model = create_model(session, True, model_path, config=config)
             print("Enter a sentence you'd like to correct")
             correct_new_sentence = raw_input()
             while correct_new_sentence.lower() != 'no':
-                decode_sentence(session, model=model, data_reader=data_reader, 
-				sentence=correct_new_sentence, 
-				corrective_tokens=data_reader.read_tokens(FLAGS.train_path))
+                decode_sentence(session, model=model, data_reader=data_reader,
+                                sentence=correct_new_sentence,
+                                corrective_tokens=data_reader.read_tokens(FLAGS.train_path))
                 print("Enter a sentence you'd like to correct or press NO")
                 correct_new_sentence = raw_input()
     elif FLAGS.decode:
@@ -459,14 +462,14 @@ def main(_):
             print("Loaded model. Beginning decoding.")
             decodings = decode(session, model=model, data_reader=data_reader,
                                data_to_decode=data_reader.read_tokens(FLAGS.test_path),
-			       corrective_tokens=data_reader.read_tokens(FLAGS.train_path)) 
+                               corrective_tokens=data_reader.read_tokens(FLAGS.train_path))
             # Write the decoded tokens to stdout.
             for tokens in decodings:
                sys.stdout.flush()
     else:
         print("Training model.")
         train(data_reader, FLAGS.train_path, FLAGS.val_path, model_path)
-	copy_train_data()
+        copy_train_data()
 
 
 if __name__ == "__main__":
