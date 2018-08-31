@@ -17,7 +17,7 @@ data_reader = MovieDialogReader(config, data_path)
 app = Flask('deep-text-corrector')
 
 
-@app.route('/<path:path>', methods=['POST'])
+@app.route('/', methods=['POST'])
 def correct_handler(path):
     corrective_tokens = data_reader.read_tokens(data_path)
     request.get_data()

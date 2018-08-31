@@ -88,7 +88,12 @@ class TextCorrectorModel(object):
                                                np.zeros(self.target_vocab_size),
                                                shape=[self.target_vocab_size],
                                                dtype=tf.float32)
-        batched_corrective_tokens = tf.pack(
+        if tf.__version__ == '1.5.1':
+            tfstack = tf.stack
+        else:
+            tfstack = tf.pack
+
+        batched_corrective_tokens = tfstack(
             [corrective_tokens_tensor] * self.batch_size)
         self.batch_corrective_tokens_mask = batch_corrective_tokens_mask = \
             tf.placeholder(
@@ -167,7 +172,11 @@ class TextCorrectorModel(object):
 
         # Training outputs and losses.
         if forward_only:
-            self.outputs, self.losses = tf.nn.seq2seq.model_with_buckets(
+            if tf.__version__ == "1.5.1":
+                tfbuckets = tf.contrib.legacy_seq2seq.model_with_buckets
+            else:
+                tfbuckets = tf.nn.seq2seq.model_with_buckets
+            self.outputs, self.losses = tfbuckets(
                 self.encoder_inputs, self.decoder_inputs, targets,
                 self.target_weights, buckets,
                 lambda x, y: seq2seq_f(x, y, True),
@@ -212,7 +221,12 @@ class TextCorrectorModel(object):
         self.saver = tf.train.Saver(tf.all_variables())
 
     def build_input_bias(self, encoder_inputs, batch_corrective_tokens_mask):
-        packed_one_hot_inputs = tf.one_hot(indices=tf.pack(
+        if tf.__version__ == '1.5.1':
+            tfstack = tf.stack
+        else:
+            tfstack = tf.pack
+
+        packed_one_hot_inputs = tf.one_hot(indices=tfstack(
             encoder_inputs, axis=1), depth=self.target_vocab_size)
         return tf.maximum(batch_corrective_tokens_mask,
                           tf.reduce_max(packed_one_hot_inputs,

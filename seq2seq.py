@@ -61,6 +61,7 @@ from __future__ import print_function
 from six.moves import xrange  # pylint: disable=redefined-builtin
 from six.moves import zip     # pylint: disable=redefined-builtin
 
+import tensorflow
 from tensorflow.python import shape
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -70,7 +71,14 @@ from tensorflow.python.ops import embedding_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import rnn
-from tensorflow.python.ops import rnn_cell
+
+
+if tensorflow.__version__ == '1.5.1':
+  from tensorflow.contrib.rnn.python.ops import core_rnn_cell as rnn_cell
+
+else:
+  from tensorflow.python.ops import rnn_cell
+
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.util import nest
 
@@ -817,8 +825,9 @@ def embedding_attention_seq2seq(encoder_inputs,
         encoder_cell = rnn_cell.EmbeddingWrapper(
             cell, embedding_classes=num_encoder_symbols,
             embedding_size=embedding_size)
+        # rnn.rnn
         encoder_outputs, encoder_state = rnn.rnn(
-            encoder_cell, encoder_inputs, dtype=dtype)
+            encoder_cell, encoder_inputs, cell=cell)
 
         # First calculate a concatenation of encoder outputs to put attention on.
         top_states = [array_ops.reshape(e, [-1, 1, cell.output_size])

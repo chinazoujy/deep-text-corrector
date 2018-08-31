@@ -36,7 +36,7 @@ tf.app.flags.DEFINE_string("data_reader_type", "MovieDialogReader",
 tf.app.flags.DEFINE_string("train_path", "train", "Training data path.")
 tf.app.flags.DEFINE_string("val_path", "val", "Validation data path.")
 tf.app.flags.DEFINE_string("test_path", "test", "Testing data path.")
-tf.app.flags.DEFINE_string("output_path", ".output", "Path where the model and data are "
+tf.app.flags.DEFINE_string("output_path", "./", "Path where the model and data are "
                                                      "saved.")
 tf.app.flags.DEFINE_string("input_path", "/input", "Path where the model and data are "
                                                    "to be read.")
