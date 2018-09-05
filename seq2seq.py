@@ -618,7 +618,12 @@ def attention_decoder(decoder_inputs,
                     ndims = q.get_shape().ndims
                     if ndims:
                         assert ndims == 2
-                query = array_ops.concat(1, query_list)
+
+                if tensorflow.__version__ == '1.5.1':
+                    query = tensorflow.concat(query_list, 1)
+                else:
+                    query = array_ops.concat(1, query_list)
+
             for a in xrange(num_heads):
                 with variable_scope.variable_scope("Attention_%d" % a):
                     y = linear(query, attention_vec_size, True)
@@ -636,7 +641,13 @@ def attention_decoder(decoder_inputs,
 
         outputs = []
         prev = None
-        batch_attn_size = array_ops.pack([batch_size, attn_size])
+
+        if tensorflow.__version__ == '1.5.1':
+            tfstack = tensorflow.stack
+        else:
+            tfstack = array_ops.pack
+
+        batch_attn_size = tfstack([batch_size, attn_size])
         attns = [array_ops.zeros(batch_attn_size, dtype=dtype)
                  for _ in xrange(num_heads)]
         for a in attns:  # Ensure the second shape of attention vectors is set.
@@ -825,14 +836,24 @@ def embedding_attention_seq2seq(encoder_inputs,
         encoder_cell = rnn_cell.EmbeddingWrapper(
             cell, embedding_classes=num_encoder_symbols,
             embedding_size=embedding_size)
-        # rnn.rnn
-        encoder_outputs, encoder_state = rnn.rnn(
-            encoder_cell, encoder_inputs, cell=cell)
 
-        # First calculate a concatenation of encoder outputs to put attention on.
-        top_states = [array_ops.reshape(e, [-1, 1, cell.output_size])
-                      for e in encoder_outputs]
-        attention_states = array_ops.concat(1, top_states)
+        if tensorflow.__version__ == '1.5.1':
+          encoder_outputs, encoder_state = rnn.static_rnn(
+              encoder_cell, encoder_inputs, dtype=dtype) #tensorflow.float32
+
+          # First calculate a concatenation of encoder outputs to put attention on.
+          top_states = [tensorflow.reshape(e, [-1, 1, cell.output_size])
+                        for e in encoder_outputs]
+          attention_states = tensorflow.concat(top_states, 1)
+
+        else:
+          encoder_outputs, encoder_state = rnn.rnn(
+              encoder_cell, encoder_inputs, dtype=dtype)
+
+          # First calculate a concatenation of encoder outputs to put attention on.
+          top_states = [array_ops.reshape(e, [-1, 1, cell.output_size])
+                        for e in encoder_outputs]
+          attention_states = array_ops.concat(1, top_states)
 
         # Decoder.
         output_size = None

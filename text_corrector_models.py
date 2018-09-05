@@ -116,11 +116,19 @@ class TextCorrectorModel(object):
 
             output_projection = (w, b)
 
-            def sampled_loss(inputs, labels):
-                labels = tf.reshape(labels, [-1, 1])
-                return tf.nn.sampled_softmax_loss(w_t, b, inputs, labels,
-                                                  num_samples,
-                                                  self.target_vocab_size)
+            if tf.__version__ == '1.5.1':
+                def sampled_loss(labels, logits):
+                    labels = tf.reshape(labels, [-1, 1])
+                    return tf.nn.sampled_softmax_loss(w_t, b, labels, logits,
+                                                        num_samples,
+                                                        self.target_vocab_size)
+            else:
+                def sampled_loss(inputs, labels):
+                    labels = tf.reshape(labels, [-1, 1])
+                    return tf.nn.sampled_softmax_loss(w_t, b, inputs, labels,
+                                                      num_samples,
+                                                      self.target_vocab_size)
+
             softmax_loss_function = sampled_loss
 
         # Create the internal multi-layer cell for our RNN.
@@ -388,7 +396,13 @@ def project_and_apply_input_bias(logits, output_projection, input_bias):
     # Apply input bias, which is a mask of shape [batch, vocab len]
     # where each token from the input in addition to all "corrective"
     # tokens are set to 1.0.
-    return tf.mul(probs, input_bias)
+
+    if tf.__version__ == '1.5.1':
+        tfmul = tf.multiply
+    else:
+        tfmul = tf.mul
+
+    return tfmul(probs, input_bias)
 
 
 def apply_input_bias_and_extract_argmax_fn_factory(input_bias):

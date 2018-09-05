@@ -14,11 +14,11 @@ model = create_model(tfs, True, model_path, config=config)
 print('Using data from path: %s' % data_path)
 data_reader = MovieDialogReader(config, data_path)
 
-app = Flask('deep-text-corrector')
+app = Flask(__name__)
 
 
 @app.route('/', methods=['POST'])
-def correct_handler(path):
+def correct_handler():
     corrective_tokens = data_reader.read_tokens(data_path)
     request.get_data()
     decodings = decode(tfs, model=model, data_reader=data_reader,
