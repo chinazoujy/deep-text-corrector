@@ -16,7 +16,7 @@ GO_TOKEN = "GO"
 
 class DataReader(object):
 
-    def __init__(self, config, train_path=None, token_to_id=None,
+    def __init__(self, config, path=None, token_to_id=None,
                  special_tokens=(), dataset_copies=1):
         self.config = config
         self.dataset_copies = dataset_copies
@@ -24,13 +24,13 @@ class DataReader(object):
         # Construct vocabulary.
         max_vocabulary_size = self.config.max_vocabulary_size
 
-        if train_path is None:
+        if path is None:
             self.token_to_id = token_to_id
         else:
             token_counts = Counter()
-
-            for tokens in self.read_tokens(train_path):
-                token_counts.update(tokens)
+            for p in path:
+                for tokens in self.read_tokens(p):
+                    token_counts.update(tokens)
 
             self.token_counts = token_counts
 

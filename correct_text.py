@@ -26,7 +26,7 @@ import numpy as np
 import tensorflow as tf
 
 from data_reader import EOS_ID
-from text_corrector_data_readers import MovieDialogReader, PTBDataReader
+from text_corrector_data_readers import MovieDialogReader, PTBDataReader, SentencePairReader
 
 from text_corrector_models import TextCorrectorModel
 
@@ -35,6 +35,10 @@ tf.app.flags.DEFINE_string("data_reader_type", "MovieDialogReader",
                            "Type of data reader to use.")
 tf.app.flags.DEFINE_string("train_path", "train", "Training data path.")
 tf.app.flags.DEFINE_string("val_path", "val", "Validation data path.")
+tf.app.flags.DEFINE_string("input_train_path", "train", "Training data path.")
+tf.app.flags.DEFINE_string("target_train_path", "train", "Training data path.")
+tf.app.flags.DEFINE_string("input_dev_path", "train", "Training data path.")
+tf.app.flags.DEFINE_string("target_dev_path", "train", "Training data path.")
 tf.app.flags.DEFINE_string("test_path", "test", "Testing data path.")
 tf.app.flags.DEFINE_string("output_path", "./", "Path where the model and data are "
                                                      "saved.")
@@ -112,6 +116,23 @@ class DefaultMovieDialogConfig():
 
     projection_bias = 0.0
 
+class SentencePairConfig():
+    buckets = [(10, 10), (15,15), (20, 20), (40,40)]
+    steps_per_checkpoint = 1000
+    max_steps = 10 * 10000
+    max_vocabulary_size = 50 * 10000
+
+    size = 512
+    num_layers = 4
+    max_gradient_norm = 5.0
+    batch_size = 64
+    learning_rate = 0.001
+    learning_rate_decay_factor = 0.99
+
+    use_lstm = True
+    use_rms_prop = False
+
+    projection_bias = 0.0
 
 def create_model(session, forward_only, model_path, config=TestConfig()):
     """Create translation model and initialize or load parameters in session."""
@@ -140,13 +161,17 @@ def create_model(session, forward_only, model_path, config=TestConfig()):
     return model
 
 
-def train(data_reader, train_path, test_path, model_path):
+def train(data_reader, train_path, test_path, model_path, is_sentence_pair=False):
     """"""
-    print(
-        "Reading data; train = {}, test = {}".format(train_path, test_path))
     config = data_reader.config
-    train_data = data_reader.build_dataset(train_path)
-    test_data = data_reader.build_dataset(test_path)
+    if is_sentence_pair:
+        print ("Reading data...")
+        train_data = data_reader.build_dataset(FLAGS.input_train_path, FLAGS.target_train_path)
+        test_data = data_reader.build_dataset(FLAGS.input_dev_path, FLAGS.target_dev_path)
+    else:
+        print("Reading data; train = {}, test = {}".format(train_path, test_path))
+        train_data = data_reader.build_dataset(train_path)
+        test_data = data_reader.build_dataset(test_path)
 
     with tf.Session() as sess:
         # Create model.
@@ -421,9 +446,11 @@ def main(_):
         config = DefaultMovieDialogConfig()
     elif FLAGS.config == "DefaultPTBConfig":
         config = DefaultPTBConfig()
+    elif FLAGS.config == "SentencePairConfig":
+        config = SentencePairConfig
     else:
         raise ValueError("config argument not recognized; must be one of: "
-                         "TestConfig, DefaultPTBConfig, "
+                         "TestConfig, DefaultPTBConfig,  SentencePairConfig"
                          "DefaultMovieDialogConfig")
     # Set the model path.
     if not FLAGS.decode and not FLAGS.decode_sentence:
@@ -436,9 +463,12 @@ def main(_):
     config.max_steps = FLAGS.num_steps
     # Determine which kind of DataReader we want to use.
     if FLAGS.data_reader_type == "MovieDialogReader":
-        data_reader = MovieDialogReader(config, FLAGS.train_path)
+        data_reader = MovieDialogReader(config, [FLAGS.train_path])
     elif FLAGS.data_reader_type == "PTBDataReader":
-        data_reader = PTBDataReader(config, FLAGS.train_path)
+        data_reader = PTBDataReader(config, [FLAGS.train_path])
+    elif FLAGS.data_reader_type == "SentencePairReader":
+        data_reader = SentencePairReader(config, [FLAGS.input_train_path, FLAGS.target_train_path,
+                                            FLAGS.input_dev_path, FLAGS.target_dev_path])
     else:
         raise ValueError("data_reader_type argument %s not recognized; must be "
                          "one of: MovieDialogReader, PTBDataReader" % FLAGS.data_reader_type)
@@ -468,7 +498,8 @@ def main(_):
                sys.stdout.flush()
     else:
         print("Training model.")
-        train(data_reader, FLAGS.train_path, FLAGS.val_path, model_path)
+        if FLAGS.data_reader_type == "SentencePairReader":
+            train(data_reader, None, None, model_path, is_sentence_pair=True)
         copy_train_data()
 
 
